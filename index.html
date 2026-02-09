@@ -448,11 +448,19 @@ function updateConnectionStatus() {
 // ══════════════════════════════════════
 // AUDIO
 // ══════════════════════════════════════
+// Shared AudioContext — created once, reused for all sounds
+let sharedAudioCtx = null;
+function getAudioCtx() {
+  if (!sharedAudioCtx) {
+    sharedAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  if (sharedAudioCtx.state === "suspended") sharedAudioCtx.resume();
+  return sharedAudioCtx;
+}
+
 function playDingSound() {
   try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    // CRITICAL: resume context in case browser has it suspended
-    if (ctx.state === "suspended") ctx.resume();
+    const ctx = getAudioCtx();
     const t = ctx.currentTime;
     const fund = 1500;
 
@@ -560,10 +568,9 @@ function speakAnnouncement(therapistName, clientName) {
 }
 
 function enableAudio() {
-  // Play an actual audible test ding so the user knows it's working
+  // Unlock the shared AudioContext with a user gesture and play test ding
   try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    if (ctx.state === "suspended") ctx.resume();
+    const ctx = getAudioCtx();
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     osc.type = "sine";
@@ -574,7 +581,7 @@ function enableAudio() {
     gain.connect(ctx.destination);
     osc.start();
     osc.stop(ctx.currentTime + 0.3);
-  } catch (e) {}
+  } catch (e) { console.error("enableAudio error:", e); }
   try { window.speechSynthesis.getVoices(); } catch (e) {}
   audioReady = true;
   render();
